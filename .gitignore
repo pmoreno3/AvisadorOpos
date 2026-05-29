@@ -1,4 +1,6 @@
 node_modules
 .env
-state.txt
+*.txt
+*.png
+*.log
 package-lock.json
