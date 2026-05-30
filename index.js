@@ -33,6 +33,9 @@ function getMonitorTargets() {
 
 const targets = getMonitorTargets();
 
+// Limpiar archivos legados al iniciar
+cleanupLegacyFiles();
+
 /**
  * Obtiene la ruta del archivo de estado para un objetivo específico
  */
@@ -41,10 +44,30 @@ function getStateFilePath(target) {
 }
 
 /**
- * Obtiene la ruta de la captura para un objetivo específico
+ * Obtiene las rutas de las capturas para un objetivo específico
  */
-function getScreenshotPath(target) {
-    return path.join(__dirname, `last_change_${target.cos}_${target.especialitat}.png`);
+function getScreenshotPaths(target) {
+    return {
+        previous: path.join(__dirname, `previous_state_${target.cos}_${target.especialitat}.png`),
+        current: path.join(__dirname, `new_state_${target.cos}_${target.especialitat}.png`)
+    };
+}
+
+/**
+ * Limpia archivos de capturas antiguos (legados)
+ */
+function cleanupLegacyFiles() {
+    const files = fs.readdirSync(__dirname);
+    files.forEach(file => {
+        if (file.startsWith('last_change_') && file.endsWith('.png')) {
+            try {
+                fs.unlinkSync(path.join(__dirname, file));
+                console.log(`🗑️ Archivo legado eliminado: ${file}`);
+            } catch (err) {
+                console.error(`❌ Error eliminando archivo legado ${file}:`, err);
+            }
+        }
+    });
 }
 
 /**
@@ -76,7 +99,7 @@ async function checkTarget(page, target, isFirstCheck) {
     console.log(`\n🔍 [${new Date().toLocaleString()}] Comprobando: ${target.name} (${target.cos}:${target.especialitat})...`);
     
     const STATE_FILE = getStateFilePath(target);
-    const SCREENSHOT_FILE = getScreenshotPath(target);
+    const { previous: PREVIOUS_SCREENSHOT, current: CURRENT_SCREENSHOT } = getScreenshotPaths(target);
 
     try {
         console.log(`🌐 Navegando a ${process.env.TARGET_URL}...`);
@@ -105,10 +128,10 @@ async function checkTarget(page, target, isFirstCheck) {
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(5000); 
 
-        // Captura inicial si es necesario
-        if (isFirstCheck || !fs.existsSync(STATE_FILE)) {
+        // Captura inicial si es necesario (si no existe el estado o es el primer check)
+        if (!fs.existsSync(STATE_FILE) || !fs.existsSync(CURRENT_SCREENSHOT)) {
             console.log(`📸 Generando captura inicial para ${target.name}...`);
-            await page.screenshot({ path: SCREENSHOT_FILE, fullPage: true });
+            await page.screenshot({ path: CURRENT_SCREENSHOT, fullPage: true });
         }
 
         // Función de normalización
@@ -147,13 +170,23 @@ async function checkTarget(page, target, isFirstCheck) {
         if (currentContent !== previousContent) {
             console.log(`🚀 ¡CAMBIO DETECTADO en ${target.name}!`);
 
-            await page.screenshot({ path: SCREENSHOT_FILE, fullPage: true });
+            // Rotación de capturas: la actual pasa a ser la anterior
+            if (fs.existsSync(CURRENT_SCREENSHOT)) {
+                if (fs.existsSync(PREVIOUS_SCREENSHOT)) {
+                    fs.unlinkSync(PREVIOUS_SCREENSHOT);
+                }
+                fs.renameSync(CURRENT_SCREENSHOT, PREVIOUS_SCREENSHOT);
+            }
+
+            // Tomar la nueva captura
+            await page.screenshot({ path: CURRENT_SCREENSHOT, fullPage: true });
 
             const logMsg = `${target.name} (Cuerpo ${target.cos}, Especialidad ${target.especialitat})`;
             logChange(logMsg);
 
             const message = `Se ha detectado un cambio en el portal de oposiciones.\n\nEspecialidad: ${target.name}\nCuerpo: ${target.cos}\nEspecialidad ID: ${target.especialitat}\n\nURL: ${process.env.TARGET_URL}`;
-            await sendEmail(`ALERTA: Cambio en ${target.name}`, message, SCREENSHOT_FILE);
+            // Enviar SOLO la captura nueva
+            await sendEmail(`ALERTA: Cambio en ${target.name}`, message, CURRENT_SCREENSHOT);
 
             fs.writeFileSync(STATE_FILE, currentContent, 'utf8');
             console.log(`✅ Estado de ${target.name} actualizado y notificación enviada.`);
@@ -245,4 +278,14 @@ function showMenu() {
     });
 }
 
-showMenu();
+module.exports = { 
+    checkTarget, 
+    getStateFilePath, 
+    getScreenshotPaths, 
+    sendEmail,
+    targets 
+};
+
+if (require.main === module) {
+    showMenu();
+}

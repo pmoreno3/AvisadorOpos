@@ -6,8 +6,8 @@ Este proyecto es una herramienta de monitoreo automático para el portal de opos
 
 - **Monitoreo Multi-objetivo**: Revisa simultáneamente múltiples cuerpos (Cos) y especialidades.
 - **Filtros Personalizados**: Configuración flexible mediante variables de entorno.
-- **Notificaciones por Email**: Envía alertas automáticas con detalles del cambio y captura de pantalla.
-- **Evidencia Visual Individual**: Guarda capturas de pantalla diferenciadas por especialidad.
+- **Notificaciones por Email**: Envía alertas automáticas adjuntando exclusivamente la captura del nuevo estado.
+- **Evidencia Visual**: Gestiona capturas del estado anterior y el nuevo para cada especialidad.
 - **Normalización de Contenido**: Evita falsos positivos ignorando cambios irrelevantes en el formato o espacios en blanco.
 - **Menú Interactivo**: Interfaz sencilla por línea de comandos para gestionar el servicio.
 
@@ -78,7 +78,8 @@ Aparecerá un menú con las siguientes opciones:
 
 - `state_CUERPO_ESPECIALIDAD.txt`: Almacena el último estado conocido de cada especialidad.
 - `changes.log`: Registro histórico de todos los cambios detectados.
-- `last_change_CUERPO_ESPECIALIDAD.png`: Última captura de pantalla donde se detectó un cambio para esa especialidad.
+- `new_state_CUERPO_ESPECIALIDAD.png`: Captura de pantalla del estado actual (enviada por correo).
+- `previous_state_CUERPO_ESPECIALIDAD.png`: Captura de pantalla del estado inmediatamente anterior al cambio.
 
 ## 📄 Licencia
 
